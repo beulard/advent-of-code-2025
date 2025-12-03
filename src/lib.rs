@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 /// Advent of Code 2025 in rust 🦀 :)
 
 pub fn d1_1(input: &str) -> u64 {
@@ -133,4 +135,89 @@ pub fn d2_2(input: &str) -> u64 {
 #[test]
 fn test_d2_2() {
     println!("d2_2={}", d2_2(include_str!("day2.txt")));
+}
+
+pub fn d3_1(input: &str) -> u32 {
+    input.lines().fold(0, |sum, bank_str| {
+        let joltages_except_last: BTreeMap<_, _> = bank_str[..bank_str.len() - 1]
+            .chars()
+            .rev()
+            .enumerate()
+            .map(|(idx, c)| (idx, c.to_digit(10).unwrap()))
+            .collect();
+
+        // BTreeMap::max_by() returns the last occurrence of the max value, but we
+        // want the first one, so that our search for the second digit works. So
+        // we reverse the map before doing the max_by(). This gives us the index
+        // of the first digit FROM THE END of the string.
+
+        let (first_idx_from_end, first_joltage) = joltages_except_last
+            .iter()
+            .max_by(|lhs, rhs| lhs.1.cmp(rhs.1))
+            .unwrap();
+
+        let second_joltage = bank_str
+            .chars()
+            .skip(bank_str.len() - first_idx_from_end - 1)
+            .map(|c| c.to_digit(10).unwrap())
+            .max()
+            .unwrap();
+
+        let jolts: u32 = first_joltage * 10 + second_joltage;
+
+        return sum + jolts;
+    })
+}
+
+#[test]
+fn test_d3_1() {
+    println!("d3_1={}", d3_1(include_str!("day3.txt")));
+}
+
+pub fn d3_2(input: &str) -> u64 {
+    input.lines().fold(0, |sum, bank_str| {
+        // For each digit, our search range will be from the last digit's position + 1
+        // to the end of the bank minus (12 - i), where i is the current digit index
+        let mut range_start = 0;
+        let mut jolts = 0;
+        let multipliers = [
+            100000000000 as u64,
+            10000000000,
+            1000000000,
+            100000000,
+            10000000,
+            1000000,
+            100000,
+            10000,
+            1000,
+            100,
+            10,
+            1,
+        ];
+        for j in 0..12 {
+            let range_end = bank_str.len() - (12 - j) + 1;
+            let possible_joltages: BTreeMap<_, _> = bank_str[range_start..range_end]
+                .chars()
+                .rev()
+                .enumerate()
+                .map(|(idx, c)| (idx, c.to_digit(10).unwrap() as u64))
+                .collect();
+
+            let (idx_from_end, joltage) = possible_joltages
+                .iter()
+                .max_by(|lhs, rhs| lhs.1.cmp(rhs.1))
+                .unwrap();
+
+            range_start = range_end - idx_from_end;
+
+            jolts += multipliers[j] * joltage;
+        }
+
+        return sum + jolts;
+    })
+}
+
+#[test]
+fn test_d3_2() {
+    println!("d3_2={}", d3_2(include_str!("day3.txt")));
 }
