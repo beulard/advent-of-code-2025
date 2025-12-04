@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Advent of Code 2025 in rust 🦀 :)
 
@@ -220,4 +220,143 @@ pub fn d3_2(input: &str) -> u64 {
 #[test]
 fn test_d3_2() {
     println!("d3_2={}", d3_2(include_str!("day3.txt")));
+}
+
+pub fn d4_1(input: &str) -> u64 {
+    let map: HashMap<_, _> = input
+        .lines()
+        .enumerate()
+        .fold(vec![], |mut out, (j, line)| {
+            line.chars().enumerate().for_each(|(i, c)| {
+                out.push((
+                    (i as i32, j as i32),
+                    match c {
+                        '@' => true,
+                        '.' => false,
+                        _ => panic!(),
+                    },
+                ));
+            });
+            out
+        })
+        .into_iter()
+        .collect();
+
+    let height = input.lines().count() as i32;
+    let width = input.lines().last().unwrap().chars().count() as i32;
+
+    let rolls = map.iter().filter(|&(_, value)| *value);
+
+    let mut accessible = 0;
+
+    for (&(x, y), _) in rolls {
+        let check_positions = [
+            (x - 1, y - 1),
+            (x, y - 1),
+            (x + 1, y - 1),
+            (x - 1, y),
+            (x + 1, y),
+            (x - 1, y + 1),
+            (x, y + 1),
+            (x + 1, y + 1),
+        ];
+        let mut num_neighbors = 0;
+        for (cx, cy) in check_positions {
+            if cx < 0 || cx >= width {
+                continue;
+            }
+            if cy < 0 || cy >= height {
+                continue;
+            }
+            if map[&(cx, cy)] {
+                num_neighbors += 1;
+            }
+        }
+        // println!("{} {} -> {}", x, y, num_neighbors);
+
+        if num_neighbors < 4 {
+            accessible += 1;
+        }
+    }
+
+    accessible
+}
+
+#[test]
+fn test_d4_1() {
+    println!("d4_1={}", d4_1(include_str!("day4.txt")));
+}
+
+pub fn d4_2(input: &str) -> u64 {
+    let height = input.lines().count() as i32;
+    let width = input.lines().last().unwrap().chars().count() as i32;
+
+    let mut map: HashMap<_, _> = input
+        .lines()
+        .enumerate()
+        .fold(vec![], |mut out, (j, line)| {
+            line.chars().enumerate().for_each(|(i, c)| {
+                out.push((
+                    (i as i32, j as i32),
+                    match c {
+                        '@' => true,
+                        '.' => false,
+                        _ => panic!(),
+                    },
+                ));
+            });
+            out
+        })
+        .into_iter()
+        .collect();
+
+    let mut total_accessible = 0;
+
+    loop {
+        let map_snapshot = map.clone();
+        // dbg!(&map_snapshot);
+        let rolls = map_snapshot.iter().filter(|&(_, value)| *value);
+
+        let mut accessible = 0;
+
+        for (&(x, y), _) in rolls {
+            let check_positions = [
+                (x - 1, y - 1),
+                (x, y - 1),
+                (x + 1, y - 1),
+                (x - 1, y),
+                (x + 1, y),
+                (x - 1, y + 1),
+                (x, y + 1),
+                (x + 1, y + 1),
+            ];
+            let mut num_neighbors = 0;
+            for (cx, cy) in check_positions {
+                if cx < 0 || cx >= width {
+                    continue;
+                }
+                if cy < 0 || cy >= height {
+                    continue;
+                }
+                if map_snapshot[&(cx, cy)] {
+                    num_neighbors += 1;
+                }
+            }
+            if num_neighbors < 4 {
+                map.insert((x, y), false);
+                accessible += 1;
+            }
+        }
+        if accessible == 0 {
+            break;
+        }
+        total_accessible += accessible;
+    }
+
+    total_accessible
+}
+
+#[test]
+fn test_d4_2() {
+    println!("d4_2={}", d4_2(include_str!("day4.txt")));
 }
