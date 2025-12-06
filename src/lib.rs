@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::Add,
+};
 
 /// Advent of Code 2025 in rust 🦀 :)
 
@@ -437,4 +440,119 @@ pub fn d5_2(input: &str) -> u64 {
 #[test]
 fn test_d5_2() {
     println!("d5_2={}", d5_2(include_str!("day5.txt")));
+}
+
+pub fn d6_1(input: &str) -> u64 {
+    // replace intervals between elements by a single space, to make splitting
+    // easier.
+    let cleaned_input: Vec<_> = input
+        .lines()
+        .map(|line| line.split_ascii_whitespace().collect::<Vec<_>>())
+        .collect();
+
+    let num_operands = cleaned_input.len() - 1;
+    let operand_lines = &cleaned_input[..num_operands];
+    let operators = &cleaned_input[num_operands];
+
+    for op_list in operand_lines {
+        assert_eq!(op_list.len(), operators.len());
+    }
+
+    let result = (0..operators.len()).fold(0, |sum, i| {
+        let operator = operators[i];
+        let operands = operand_lines
+            .iter()
+            .map(|op_line| op_line[i].parse::<u64>().unwrap())
+            .collect::<Vec<_>>();
+
+        let r = match operator {
+            "+" => operands
+                .iter()
+                .fold(0, |sum, operand_str| sum + operand_str),
+            "*" => operands
+                .iter()
+                .fold(1, |product, operand_str| product * operand_str),
+            _ => panic!(),
+        };
+        return sum + r;
+    });
+
+    result
+}
+
+#[test]
+fn test_d6_1() {
+    println!("d6_1={}", d6_1(include_str!("day6.txt")));
+}
+
+pub fn d6_2(input: &str) -> u64 {
+    // Parsing the input just got harder.
+
+    // parse the numbers from right to left in column-wise fashion
+    let num_operands = input.lines().count() - 1;
+    let num_columns = input.lines().nth(0).unwrap().chars().count();
+
+    // turn the input into columns
+    let columns = (0..num_columns).rev().map(|i| {
+        input
+            .lines()
+            .take(num_operands)
+            .map(move |line| line.chars().nth(i).unwrap())
+            .collect::<Vec<_>>()
+    });
+
+    let operand_sets = columns.fold(vec![vec![]], |mut operand_vec: Vec<Vec<u64>>, column| {
+        if column.iter().all(|&c| c == ' ') {
+            // Empty column -> move to next computation
+            operand_vec.push(vec![]);
+        } else {
+            let operand = column.iter().enumerate().fold(0, |sum, (i, &c)| {
+                if c == ' ' {
+                    sum
+                } else {
+                    sum * 10 + (c.to_digit(10).unwrap() as u64)
+                }
+            });
+            operand_vec.last_mut().unwrap().push(operand);
+        }
+
+        return operand_vec;
+    });
+
+    // Operators are still ~easy if we use split_ascii_whitespace()
+    #[derive(Debug)]
+    enum Operator {
+        Add,
+        Multiply,
+    }
+    let operators: Vec<Operator> = input
+        .lines()
+        .last()
+        .unwrap()
+        .split_ascii_whitespace()
+        .rev()
+        .map(|op_str| match op_str {
+            "+" => Operator::Add,
+            "*" => Operator::Multiply,
+            _ => panic!(),
+        })
+        .collect();
+
+    return operators
+        .iter()
+        .zip(operand_sets)
+        .fold(0, |sum, (operator, operands)| {
+            // dbg!(&operator, &operands);
+            let delta = match operator {
+                Operator::Add => operands.iter().fold(0, |sum, e| sum + e),
+                Operator::Multiply => operands.iter().fold(1, |product, e| product * e),
+            };
+            // dbg!(&delta);
+            sum + delta
+        });
+}
+
+#[test]
+fn test_d6_2() {
+    println!("d6_2={}", d6_2(include_str!("day6.txt")));
 }
