@@ -360,3 +360,81 @@ pub fn d4_2(input: &str) -> u64 {
 fn test_d4_2() {
     println!("d4_2={}", d4_2(include_str!("day4.txt")));
 }
+
+pub fn d5_1(input: &str) -> u64 {
+    let (ranges_str, ingredients_str) = input.split_once("\n\n").unwrap();
+    let ranges = ranges_str.lines().map(|line| {
+        let (lo_str, hi_str) = line.split_once("-").unwrap();
+        return (
+            lo_str.parse::<i64>().unwrap(),
+            hi_str.parse::<i64>().unwrap(),
+        );
+    });
+
+    // combine ranges ?
+
+    let ingredients = ingredients_str.lines().map(|id| id.parse::<i64>().unwrap());
+
+    let mut num_fresh: u64 = 0;
+    'ingredient_loop: for id in ingredients {
+        for range in ranges.clone() {
+            if id >= range.0 && id <= range.1 {
+                num_fresh += 1;
+                continue 'ingredient_loop;
+            }
+        }
+    }
+
+    num_fresh
+}
+
+#[test]
+fn test_d5_1() {
+    println!("d5_1={}", d5_1(include_str!("day5.txt")));
+}
+
+pub fn d5_2(input: &str) -> u64 {
+    let (ranges_str, _) = input.split_once("\n\n").unwrap();
+    let mut ranges = ranges_str
+        .lines()
+        .map(|line| {
+            let (lo_str, hi_str) = line.split_once("-").unwrap();
+            return (
+                lo_str.parse::<u64>().unwrap(),
+                hi_str.parse::<u64>().unwrap(),
+            );
+        })
+        .collect::<Vec<_>>();
+
+    // sorting by lower bound makes the rest easier
+    ranges.sort_by(|x, y| x.0.cmp(&y.0));
+
+    // represent combined ranges as map of start -> end
+    let mut rangemap: HashMap<u64, u64> = HashMap::new();
+
+    // combine ranges, then simply calculate sum of end - start
+    for range in ranges.clone() {
+        let mut low = range.0;
+        let mut high = range.1;
+        for other in rangemap.clone() {
+            if low <= other.1 {
+                // merge this range with the other one
+                low = other.0;
+                high = range.1.max(other.1);
+            }
+        }
+        rangemap.insert(low, high);
+    }
+
+    let mut num_fresh = 0;
+    for range in rangemap {
+        num_fresh += range.1 - range.0 + 1
+    }
+
+    num_fresh
+}
+
+#[test]
+fn test_d5_2() {
+    println!("d5_2={}", d5_2(include_str!("day5.txt")));
+}
