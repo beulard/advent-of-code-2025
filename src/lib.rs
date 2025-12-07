@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    ops::Add,
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Advent of Code 2025 in rust 🦀 :)
 
@@ -506,7 +503,7 @@ pub fn d6_2(input: &str) -> u64 {
             // Empty column -> move to next computation
             operand_vec.push(vec![]);
         } else {
-            let operand = column.iter().enumerate().fold(0, |sum, (i, &c)| {
+            let operand = column.iter().fold(0, |sum, &c| {
                 if c == ' ' {
                     sum
                 } else {
@@ -555,4 +552,103 @@ pub fn d6_2(input: &str) -> u64 {
 #[test]
 fn test_d6_2() {
     println!("d6_2={}", d6_2(include_str!("day6.txt")));
+}
+
+pub fn d7_1(input: &str) -> usize {
+    // the question is how many splitters the beam hits.
+    // brute force -> simulate every split and propagate each beam, eliminating
+    // double counts at every vertical step.
+
+    fn beam_step(beams_in: &HashSet<usize>, line: &str) -> (usize, HashSet<usize>) {
+        let mut beams_out = HashSet::new();
+        let mut num_splits = 0;
+
+        line.chars().enumerate().for_each(|(i, c)| {
+            if beams_in.contains(&i) {
+                match c {
+                    '.' => {
+                        beams_out.insert(i);
+                    }
+                    '^' => {
+                        num_splits += 1;
+                        if i > 0 {
+                            beams_out.insert(i - 1);
+                        }
+                        if i < line.chars().count() - 1 {
+                            beams_out.insert(i + 1);
+                        }
+                    }
+                    _ => panic!(),
+                }
+            }
+        });
+
+        return (num_splits, beams_out);
+    }
+
+    let start_pos = input.lines().nth(0).unwrap().find('S').unwrap();
+
+    let mut num_splits = 0;
+    let mut beams = HashSet::from([start_pos]);
+
+    for line in input.lines().skip(1) {
+        let (delta_splits, newbeams) = beam_step(&beams, line);
+        beams = newbeams;
+        num_splits += delta_splits;
+    }
+
+    num_splits
+}
+
+#[test]
+fn test_d7_1() {
+    println!("d7_1={}", d7_1(include_str!("day7.txt")));
+}
+
+pub fn d7_2(input: &str) -> usize {
+    let start_pos = input.lines().nth(0).unwrap().find('S').unwrap();
+
+    // DFS, with memoization
+    fn num_splits(
+        beam_pos: usize,
+        depth: usize,
+        lines: &[&str],
+        memo: &mut HashMap<(usize, usize), usize>,
+    ) -> usize {
+        if memo.contains_key(&(beam_pos, depth)) {
+            return memo.get(&(beam_pos, depth)).unwrap().clone();
+        }
+
+        if lines.len() == 0 {
+            return 1;
+        }
+        if lines[0].chars().nth(beam_pos).unwrap() == '^' {
+            if beam_pos < 1 {
+                panic!();
+            } else if beam_pos >= lines[0].chars().count() - 1 {
+                panic!();
+            } else {
+                let result = num_splits(beam_pos - 1, depth + 1, &lines[1..], memo)
+                    + num_splits(beam_pos + 1, depth + 1, &lines[1..], memo);
+                memo.insert((beam_pos, depth), result);
+                return result;
+            }
+        } else {
+            let result = num_splits(beam_pos, depth + 1, &lines[1..], memo);
+            memo.insert((beam_pos, depth), result);
+            return result;
+        }
+    }
+
+    num_splits(
+        start_pos,
+        0,
+        &input.lines().collect::<Vec<_>>(),
+        &mut HashMap::new(),
+    )
+}
+
+#[test]
+fn test_d7_2() {
+    println!("d7_2={}", d7_2(include_str!("day7.txt")));
 }
