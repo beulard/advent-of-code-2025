@@ -1,4 +1,9 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    hash::Hash,
+    iter::Enumerate,
+    ops::DerefMut,
+};
 
 /// Advent of Code 2025 in rust 🦀 :)
 
@@ -615,8 +620,8 @@ pub fn d7_2(input: &str) -> usize {
         lines: &[&str],
         memo: &mut HashMap<(usize, usize), usize>,
     ) -> usize {
-        if memo.contains_key(&(beam_pos, depth)) {
-            return memo.get(&(beam_pos, depth)).unwrap().clone();
+        if let Some(memoed) = memo.get(&(beam_pos, depth)) {
+            return *memoed;
         }
 
         if lines.len() == 0 {
@@ -651,4 +656,143 @@ pub fn d7_2(input: &str) -> usize {
 #[test]
 fn test_d7_2() {
     println!("d7_2={}", d7_2(include_str!("day7.txt")));
+}
+
+pub fn d8_1(input: &str) -> usize {
+    type Position = (i64, i64, i64);
+    let positions = input
+        .lines()
+        .map(|line| {
+            let mut elements = line.split(',');
+            return (
+                elements.next().unwrap().parse::<i64>().unwrap(),
+                elements.next().unwrap().parse::<i64>().unwrap(),
+                elements.next().unwrap().parse::<i64>().unwrap(),
+            );
+        })
+        .collect::<Vec<_>>();
+
+    let mut pairs: BTreeMap<i64, (Position, Position)> = BTreeMap::new();
+
+    // first step is to order each pair of boxes by their euclidean distance
+    for left in positions.clone() {
+        for right in positions.clone() {
+            if left != right {
+                let distance = (left.0 - right.0) * (left.0 - right.0)
+                    + (left.1 - right.1) * (left.1 - right.1)
+                    + (left.2 - right.2) * (left.2 - right.2);
+                pairs.insert(distance, (left, right));
+            }
+        }
+    }
+
+    let mut circuits: HashMap<Position, i32> = (0..positions.len())
+        .map(|i| (positions[i], -1))
+        .collect::<HashMap<_, _>>();
+
+    let mut ngroups = 0;
+
+    for (_, (left, right)) in pairs.iter().take(1000) {
+        let lgrp = *circuits.get(left).unwrap();
+        let rgrp = *circuits.get(right).unwrap();
+
+        if lgrp == -1 && rgrp == -1 {
+            circuits.insert(*left, ngroups);
+            circuits.insert(*right, ngroups);
+            ngroups += 1;
+        } else if lgrp == -1 {
+            circuits.insert(*left, rgrp);
+        } else if rgrp == -1 {
+            circuits.insert(*right, lgrp);
+        } else if rgrp == lgrp {
+        } else {
+            // both have groups -> change all entries with group == rgrp to left group
+            circuits
+                .iter_mut()
+                .filter(|(_, v)| **v == rgrp)
+                .for_each(|(_, grp)| *grp = lgrp);
+        }
+    }
+
+    let mut counts = vec![];
+    for i in 0..ngroups {
+        counts.push(circuits.values().filter(|group_id| **group_id == i).count());
+    }
+    // dbg!(&counts);
+    counts.sort();
+    counts.reverse();
+    counts.iter().take(3).fold(1, |product, e| product * e)
+}
+
+#[test]
+fn test_d8_1() {
+    println!("d8_1={}", d8_1(include_str!("day8.txt")));
+}
+
+pub fn d8_2(input: &str) -> usize {
+    type Position = (i64, i64, i64);
+    let positions = input
+        .lines()
+        .map(|line| {
+            let mut elements = line.split(',');
+            return (
+                elements.next().unwrap().parse::<i64>().unwrap(),
+                elements.next().unwrap().parse::<i64>().unwrap(),
+                elements.next().unwrap().parse::<i64>().unwrap(),
+            );
+        })
+        .collect::<Vec<_>>();
+
+    let mut pairs: BTreeMap<i64, (Position, Position)> = BTreeMap::new();
+
+    // first step is to order each pair of boxes by their euclidean distance
+    for left in positions.clone() {
+        for right in positions.clone() {
+            if left != right {
+                let distance = (left.0 - right.0) * (left.0 - right.0)
+                    + (left.1 - right.1) * (left.1 - right.1)
+                    + (left.2 - right.2) * (left.2 - right.2);
+                pairs.insert(distance, (left, right));
+            }
+        }
+    }
+
+    let mut circuits: HashMap<Position, i32> = (0..positions.len())
+        .map(|i| (positions[i], -1))
+        .collect::<HashMap<_, _>>();
+
+    let mut ngroups = 0;
+
+    for (_, (left, right)) in pairs.iter() {
+        let lgrp = *circuits.get(left).unwrap();
+        let rgrp = *circuits.get(right).unwrap();
+
+        if lgrp == -1 && rgrp == -1 {
+            circuits.insert(*left, ngroups);
+            circuits.insert(*right, ngroups);
+            ngroups += 1;
+        } else if lgrp == -1 {
+            circuits.insert(*left, rgrp);
+        } else if rgrp == -1 {
+            circuits.insert(*right, lgrp);
+        } else if rgrp == lgrp {
+        } else {
+            // both have groups -> change all entries with group == rgrp to left group
+            circuits
+                .iter_mut()
+                .filter(|(_, v)| **v == rgrp)
+                .for_each(|(_, grp)| *grp = lgrp);
+        }
+
+        if circuits.values().all(|val| *val == lgrp) {
+            return (left.0 * right.0).try_into().unwrap();
+        }
+    }
+
+    0
+}
+
+#[test]
+fn test_d8_2() {
+    println!("d8_2={}", d8_2(include_str!("day8.txt")));
 }
