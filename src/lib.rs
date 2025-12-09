@@ -796,3 +796,28 @@ pub fn d8_2(input: &str) -> usize {
 fn test_d8_2() {
     println!("d8_2={}", d8_2(include_str!("day8.txt")));
 }
+
+pub fn d9_1(input: &str) -> i64 {
+    let positions: Vec<(i64, i64)> = input
+        .lines()
+        .map(|line| {
+            let (xstr, ystr) = line.split_once(',').unwrap();
+            (xstr.parse::<i64>().unwrap(), ystr.parse::<i64>().unwrap())
+        })
+        .collect();
+
+    let mut top_area = 0;
+    // For each pair of positions, find the one with highest area O(n^2)
+    for p1 in &positions {
+        for p2 in &positions {
+            top_area = (((p1.0 - p2.0).abs() + 1) * ((p1.1 - p2.1).abs() + 1)).max(top_area);
+        }
+    }
+
+    top_area
+}
+
+#[test]
+fn test_d9_1() {
+    println!("d9_1={}", d9_1(include_str!("day9.txt")));
+}
