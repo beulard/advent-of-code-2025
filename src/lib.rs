@@ -821,3 +821,371 @@ pub fn d9_1(input: &str) -> i64 {
 fn test_d9_1() {
     println!("d9_1={}", d9_1(include_str!("day9.txt")));
 }
+
+pub fn d9_2(input: &str) -> i64 {
+    #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+    struct Point {
+        x: i64,
+        y: i64,
+    }
+
+    let positions: Vec<Point> = input
+        .lines()
+        .map(|line| {
+            let (xstr, ystr) = line.split_once(',').unwrap();
+            Point {
+                x: xstr.parse::<i64>().unwrap(),
+                y: ystr.parse::<i64>().unwrap(),
+            }
+        })
+        .collect();
+
+    // Now the rectangles we draw must be contained within the path drawn by the
+    // input...
+    // This is kind of like a concave shape collision detection ?
+    // We basically can't know how concave the shape is, we need to use
+    // the entire path for every check.
+    // The corners of the checked against rectangle will always be contained in the path
+    // but the interior is what matters. Can we "just" check the four corners ? i.e.
+    // for each pair, check whether all four corners are contained inside the path,
+    // if not, go next.
+
+    // First thing we need to implement is a "point_in_path() -> bool" function.
+    // Then it's pretty easy.
+    // For each pair, determine four corners. Check that all corners are inside the
+    // path, if yes, we have a candidate.
+    // Then pick the candidate with greatest area.
+
+    // let positions = [
+    //     (-1, -1),
+    //     (0, -1),
+    //     (1, -1),
+    //     (1, 0),
+    //     (1, 1),
+    //     (0, 1),
+    //     (-1, 1),
+    //     (-1, 0),
+    // ]
+    // .into_iter()
+    // .collect::<Vec<_>>();
+
+    // let positions = [(-3, -3), (3, -3), (3, 3), (-3, 3)]
+    //     .into_iter()
+    //     .collect::<Vec<_>>();
+
+    let mut path = positions.clone();
+    path.push(path[0]); // close the path
+
+    let mut horizontal_edges: HashMap<i64, Vec<(Point, Point)>> = HashMap::new();
+    let mut vertical_edges: HashMap<i64, Vec<(Point, Point)>> = HashMap::new();
+
+    // Create a set of all points in the path
+    let mut path_points: HashSet<Point> = HashSet::new();
+    let mut steps: Vec<(Point, Point)> = vec![];
+    for i in 0..path.len() - 1 {
+        let p1 = path[i];
+        let p2 = path[i + 1];
+        path_points.insert(p1);
+
+        if p1.x == p2.x {
+            let direction = (p2.y - p1.y).signum();
+            vertical_edges.entry(p1.x).or_insert(vec![]).push((p1, p2));
+            // vertical_edges.insert(p1.x, (p1, p2));
+            for j in 0..(p2.y - p1.y).abs() {
+                path_points.insert(Point {
+                    x: p1.x,
+                    y: p1.y + direction * j,
+                });
+                steps.push((
+                    Point {
+                        x: p1.x,
+                        y: p1.y + direction * j,
+                    },
+                    Point { x: 0, y: direction },
+                ));
+            }
+        } else if p1.y == p2.y {
+            let direction = (p2.x - p1.x).signum();
+            horizontal_edges
+                .entry(p1.y)
+                .or_insert(vec![])
+                .push((p1, p2));
+            for j in 0..(p2.x - p1.x).abs() {
+                path_points.insert(Point {
+                    x: p1.x + direction * j,
+                    y: p1.y,
+                });
+                steps.push((
+                    Point {
+                        x: p1.x + direction * j,
+                        y: p1.y,
+                    },
+                    Point { x: direction, y: 0 },
+                ));
+            }
+        } else {
+            panic!();
+        }
+    }
+    // dbg!(&path_points);
+    // dbg!(&steps);
+
+    #[derive(Debug)]
+    struct Rect {
+        topleft: Point,
+        dims: Point,
+        bottomright: Point,
+    }
+    #[derive(Debug)]
+    struct Floor {
+        bounding_rect: Rect,
+    }
+
+    let min_x = path_points
+        .iter()
+        .fold(i64::max_value(), |acc, point| point.x.min(acc));
+    let min_y = path_points
+        .iter()
+        .fold(i64::max_value(), |acc, point| point.y.min(acc));
+    let max_x = path_points
+        .iter()
+        .fold(i64::min_value(), |acc, point| point.x.max(acc));
+    let max_y = path_points
+        .iter()
+        .fold(i64::min_value(), |acc, point| point.y.max(acc));
+    dbg!(min_x, min_y, max_x, max_y);
+
+    let floor = Floor {
+        bounding_rect: Rect {
+            topleft: Point { x: min_x, y: min_y },
+            dims: Point {
+                x: max_x - min_x,
+                y: max_y - min_y,
+            },
+            bottomright: Point { x: max_x, y: max_y },
+        },
+    };
+
+    // dbg!(floor);
+
+    // let mut points_inside_path: HashSet<Point> = HashSet::with_capacity(100000000);
+
+    // for row in floor.bounding_rect.topleft.y..floor.bounding_rect.bottomright.y {
+    //     dbg!((
+    //         row,
+    //         floor.bounding_rect.bottomright.y,
+    //         points_inside_path.len()
+    //     ));
+    //     let mut inside_path = false;
+    //     for col in floor.bounding_rect.topleft.x..floor.bounding_rect.bottomright.x {
+    //         let p = Point { x: col, y: row };
+    //         if inside_path {
+    //             // dbg!(p);
+    //             points_inside_path.insert(p);
+    //         } else if path_points.contains(&p) {
+    //             // dbg!(p);
+    //             points_inside_path.insert(p);
+    //             inside_path = !inside_path;
+    //         } else {
+    //             // dbg!(("else", p));
+    //         }
+    //     }
+    // }
+
+    fn is_inside_path(
+        point: &Point,
+        path_points: &HashSet<Point>,
+        bounding_rect: &Rect,
+        horizontal_edges: &HashMap<i64, Vec<(Point, Point)>>,
+        memo: &mut HashMap<Point, bool>,
+    ) -> bool {
+        if let Some(ret) = memo.get(point) {
+            return *ret;
+        }
+        if path_points.contains(point) {
+            return true;
+        }
+
+        let mut intersections = 0;
+        // ray cast vertically down
+        for j in (bounding_rect.topleft.y..=point.y - 1).rev() {
+            if let Some(edges) = horizontal_edges.get(&j) {
+                // dbg!((j, edges));
+                for edge in edges {
+                    let left = edge.0.x.min(edge.1.x);
+                    let right = edge.0.x.max(edge.1.x);
+                    if left < point.x && right >= point.x {
+                        intersections += 1;
+                    }
+                }
+                // dbg!((j, edges, intersections));
+            }
+        }
+        if intersections % 2 == 1 {
+            memo.insert(point.clone(), true);
+            return true;
+        } else {
+            memo.insert(point.clone(), false);
+            return false;
+        }
+    }
+
+    let mut memo = HashMap::new();
+
+    dbg!(is_inside_path(
+        &Point { x: 8, y: 2 },
+        &path_points,
+        &floor.bounding_rect,
+        &horizontal_edges,
+        &mut memo,
+    ));
+
+    dbg!(is_inside_path(
+        &Point { x: 8, y: 0 },
+        &path_points,
+        &floor.bounding_rect,
+        &horizontal_edges,
+        &mut memo,
+    ));
+    dbg!(is_inside_path(
+        &Point { x: 7, y: 1 },
+        &path_points,
+        &floor.bounding_rect,
+        &horizontal_edges,
+        &mut memo,
+    ));
+
+    dbg!(is_inside_path(
+        &Point { x: 3, y: 4 },
+        &path_points,
+        &floor.bounding_rect,
+        &horizontal_edges,
+        &mut memo,
+    ));
+    let bounding_rect = &floor.bounding_rect;
+
+    let mut top_area = 0;
+    // // For each pair of corners, find the one whose corners all lie inside the path, and
+    // // has with highest area.
+    // Instead of checking all pairs, check the most far away ones first.
+    // The first one we find that's entirely in the path is the answer.
+    // -> sort pairs of positions by the area they describe
+    let mut pairs: BTreeMap<i64, (Point, Point)> = BTreeMap::new();
+    for p1 in &positions {
+        for p2 in &positions {
+            if p1 == p2 {
+                continue;
+            }
+            let area = ((p1.x - p2.x).abs() + 1) * ((p1.y - p2.y).abs() + 1);
+            pairs.insert(area, (*p1, *p2));
+        }
+    }
+
+    'pair_loop: for (area, (p1, p2)) in pairs.iter().rev() {
+        let topleft = Point {
+            x: p1.x.min(p2.x),
+            y: p1.y.min(p2.y),
+        };
+        let topright = Point {
+            x: p1.x.max(p2.x),
+            y: p1.y.min(p2.y),
+        };
+        let bottomright = Point {
+            x: p1.x.max(p2.x),
+            y: p1.y.max(p2.y),
+        };
+        let bottomleft = Point {
+            x: p1.x.min(p2.x),
+            y: p1.y.max(p2.y),
+        };
+        if is_inside_path(
+            &topleft,
+            &path_points,
+            bounding_rect,
+            &horizontal_edges,
+            &mut memo,
+        ) && is_inside_path(
+            &topright,
+            &path_points,
+            bounding_rect,
+            &horizontal_edges,
+            &mut memo,
+        ) && is_inside_path(
+            &bottomright,
+            &path_points,
+            bounding_rect,
+            &horizontal_edges,
+            &mut memo,
+        ) && is_inside_path(
+            &bottomleft,
+            &path_points,
+            bounding_rect,
+            &horizontal_edges,
+            &mut memo,
+        ) {
+            // Now check all points...
+            // maybe all points is overkill, and the boundary is sufficient
+            // yes that sounds reasonable -> just check the perimeter
+            println!("checking all points for {:?} {:?}", p1, p2);
+            // top and bottom edges
+            for i in topleft.x + 1..topright.x {
+                if i % 1000 == 0 {
+                    println!("i={}", i);
+                }
+                if !is_inside_path(
+                    &Point { x: i, y: topleft.y },
+                    &path_points,
+                    bounding_rect,
+                    &horizontal_edges,
+                    &mut memo,
+                ) || !is_inside_path(
+                    &Point {
+                        x: i,
+                        y: bottomleft.y,
+                    },
+                    &path_points,
+                    bounding_rect,
+                    &horizontal_edges,
+                    &mut memo,
+                ) {
+                    continue 'pair_loop;
+                }
+            }
+
+            // left and right edges
+            for j in topleft.y + 1..bottomleft.y {
+                if j % 1000 == 0 {
+                    println!("j={}", j);
+                }
+                if !is_inside_path(
+                    &Point { x: topleft.x, y: j },
+                    &path_points,
+                    bounding_rect,
+                    &horizontal_edges,
+                    &mut memo,
+                ) || !is_inside_path(
+                    &Point {
+                        x: topright.x,
+                        y: j,
+                    },
+                    &path_points,
+                    bounding_rect,
+                    &horizontal_edges,
+                    &mut memo,
+                ) {
+                    continue 'pair_loop;
+                }
+            }
+            // if we get there, our whole perimeter is in the path
+            dbg!((p1, p2, area));
+            return *area;
+        }
+    }
+
+    top_area
+}
+
+#[test]
+fn test_d9_2() {
+    println!("d9_2={}", d9_2(include_str!("day9.txt")));
+}
