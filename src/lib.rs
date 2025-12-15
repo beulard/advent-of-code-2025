@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     hash::Hash,
     iter::Enumerate,
     ops::DerefMut,
@@ -1188,4 +1188,223 @@ pub fn d9_2(input: &str) -> i64 {
 #[test]
 fn test_d9_2() {
     println!("d9_2={}", d9_2(include_str!("day9.txt")));
+}
+
+pub fn d10_1(input: &str) -> usize {
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    enum LightState {
+        On,
+        Off,
+    }
+    type ButtonWiring = Vec<usize>;
+    type Joltage = u64;
+
+    let machines: Vec<(Vec<LightState>, Vec<ButtonWiring>, Vec<Joltage>)> =
+        input.lines().fold(vec![], |mut m, line: &str| {
+            let (mut l, mut b, mut j) = (vec![], vec![], vec![]);
+            line.split_ascii_whitespace().for_each(|item| {
+                match item.chars().nth(0).unwrap() {
+                    '[' => {
+                        // lights
+                        for c in item
+                            .strip_prefix('[')
+                            .unwrap()
+                            .strip_suffix(']')
+                            .unwrap()
+                            .chars()
+                        {
+                            l.push(match c {
+                                '.' => LightState::Off,
+                                '#' => LightState::On,
+                                _ => panic!(),
+                            });
+                        }
+                    }
+                    '(' => {
+                        let stripped = item.strip_prefix('(').unwrap().strip_suffix(')').unwrap();
+                        let mut targets = vec![];
+                        for val_str in stripped.split(',') {
+                            targets.push(val_str.parse().unwrap());
+                        }
+                        b.push(targets);
+                    }
+                    '{' => {
+                        // not needed yet.
+                        let stripped = item.strip_prefix('{').unwrap().strip_suffix('}').unwrap();
+                        for val_str in stripped.split(',') {
+                            j.push(val_str.parse::<Joltage>().unwrap());
+                        }
+                    }
+                    _ => panic!(),
+                };
+            });
+            assert_eq!(l.len(), j.len());
+            m.push((l, b, j));
+            return m;
+        });
+
+    // dbg!(&machines);
+
+    fn get_fewest_presses(goal: &[LightState], wiring: &[ButtonWiring]) -> usize {
+        // this is a bfs
+        let num_buttons = wiring.len();
+        let mut q = VecDeque::new();
+        let mut visited: HashSet<Vec<LightState>> = HashSet::new();
+        q.push_back((0, vec![LightState::Off; goal.len()]));
+
+        loop {
+            if let Some((num_presses, state)) = q.pop_front() {
+                // dbg!(button, &wiring);
+                // dbg!(button, &state);
+                if goal.iter().zip(&state).all(|(x, y)| *x == *y) {
+                    // stop here, we have reached the goal state.
+                    return num_presses;
+                } else {
+                    for i in 0..num_buttons {
+                        let mut new_state = state.clone();
+                        for light_idx in &wiring[i] {
+                            new_state[*light_idx] = match state[*light_idx] {
+                                LightState::On => LightState::Off,
+                                LightState::Off => LightState::On,
+                            }
+                        }
+                        if !visited.contains(&new_state) {
+                            visited.insert(new_state.clone());
+                            q.push_back((num_presses + 1, new_state));
+                        } else {
+                            // println!("visited {:?}", new_state);
+                        }
+                    }
+                }
+            } else {
+                panic!();
+            }
+        }
+    }
+
+    let mut total_presses = 0;
+    for (l, b, _) in &machines {
+        let num_presses = get_fewest_presses(l, b);
+        // dbg!((l, num_presses));
+        total_presses += num_presses;
+    }
+
+    total_presses
+}
+
+#[test]
+fn test_d10_1() {
+    println!("d10_1={}", d10_1(include_str!("day10.txt")));
+}
+
+pub fn d10_2(input: &str) -> usize {
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    enum LightState {
+        On,
+        Off,
+    }
+    type ButtonWiring = Vec<usize>;
+    type Joltage = u64;
+
+    let machines: Vec<(Vec<LightState>, Vec<ButtonWiring>, Vec<Joltage>)> =
+        input.lines().fold(vec![], |mut m, line: &str| {
+            let (mut l, mut b, mut j) = (vec![], vec![], vec![]);
+            line.split_ascii_whitespace().for_each(|item| {
+                match item.chars().nth(0).unwrap() {
+                    '[' => {
+                        // lights
+                        for c in item
+                            .strip_prefix('[')
+                            .unwrap()
+                            .strip_suffix(']')
+                            .unwrap()
+                            .chars()
+                        {
+                            l.push(match c {
+                                '.' => LightState::Off,
+                                '#' => LightState::On,
+                                _ => panic!(),
+                            });
+                        }
+                    }
+                    '(' => {
+                        let stripped = item.strip_prefix('(').unwrap().strip_suffix(')').unwrap();
+                        let mut targets = vec![];
+                        for val_str in stripped.split(',') {
+                            targets.push(val_str.parse().unwrap());
+                        }
+                        b.push(targets);
+                    }
+                    '{' => {
+                        // not needed yet.
+                        let stripped = item.strip_prefix('{').unwrap().strip_suffix('}').unwrap();
+                        for val_str in stripped.split(',') {
+                            j.push(val_str.parse::<Joltage>().unwrap());
+                        }
+                    }
+                    _ => panic!(),
+                };
+            });
+            assert_eq!(l.len(), j.len());
+            m.push((l, b, j));
+            return m;
+        });
+
+    // dbg!(&machines);
+
+    fn get_fewest_presses(goal: &[Joltage], wiring: &[ButtonWiring]) -> usize {
+        // this is a bfs
+        let num_buttons = wiring.len();
+        let mut q = VecDeque::new();
+        let mut visited: HashSet<Vec<Joltage>> = HashSet::new();
+        q.push_back((0, vec![0; goal.len()]));
+
+        loop {
+            if let Some((num_presses, state)) = q.pop_front() {
+                // dbg!(q.len());
+                if state.iter().zip(goal).any(|(&cur, &goal)| cur > goal) {
+                    // dead end: one of the counters exceed the target so we'll never get there.
+                    // dbg!(&state);
+                    continue;
+                }
+
+                // dbg!(button, &wiring);
+                // dbg!(button, &state);
+                if goal.iter().zip(&state).all(|(x, y)| *x == *y) {
+                    // stop here, we have reached the goal state.
+                    return num_presses;
+                } else {
+                    for i in 0..num_buttons {
+                        let mut new_state = state.clone();
+                        for jolt_idx in &wiring[i] {
+                            new_state[*jolt_idx] += 1;
+                        }
+                        if !visited.contains(&new_state) {
+                            visited.insert(new_state.clone());
+                            q.push_back((num_presses + 1, new_state));
+                        } else {
+                            // println!("visited {:?}", new_state);
+                        }
+                    }
+                }
+            } else {
+                panic!();
+            }
+        }
+    }
+
+    let mut total_presses = 0;
+    for (_, b, j) in &machines {
+        let num_presses = get_fewest_presses(j, b);
+        // dbg!((&j, &num_presses));
+        total_presses += num_presses;
+        println!("{}", total_presses);
+    }
+
+    total_presses
+}
+
+#[test]
+fn test_d10_2() {
+    println!("d10_2={}", d10_2(include_str!("day10.txt")));
 }
